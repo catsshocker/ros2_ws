@@ -27,7 +27,7 @@ MovvveTask::MovvveTask(double dx, double dy, double dtheta, double Vm, double Ac
         this->t2 = t_acc + t_constant;
         this->t3 = this->t2 + t_acc;
         this->v_max_calc = Vm;
-    } 
+    }
     else {
         // 情況 B：距離太短，還沒到 Vm 就得開始減速（三角形速度曲線）
         // 此時實際能達到的最高速度 v_peak = sqrt(l * Acc)
