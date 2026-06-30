@@ -22,6 +22,14 @@ MotorManager::MotorManager(): Node("motor_manager"){
         "/titan0/m_3/encoder", 10, [this](const std_msgs::msg::Float64::SharedPtr msg) { encoderCallback(msg, 3); }
     );
 
+    this->parameter_callback_handle_ =
+    this->add_on_set_parameters_callback(
+        std::bind(&MotorManager::parameterEventCallback,
+                  this,
+                  std::placeholders::_1));
+
+    this->updateParameters()
+
     this->declare_parameter<double>("wheel.kp", 1.0);
     this->declare_parameter<double>("wheel.ki", 0.0);
     this->declare_parameter<double>("wheel.kd", 0.1);
@@ -46,6 +54,7 @@ MotorManager::MotorManager(): Node("motor_manager"){
     for (int i = 0; i < 4; i++) {
         pid_controllers_[i].setOutputLimits(1.0, -1.0);
     }
+    RCLCPP_INFO(this->get_logger(), "motor_manager is running!!");
 }
 
 void MotorManager::encoderCallback(const std_msgs::msg::Float64::SharedPtr msg,int id)
@@ -93,7 +102,7 @@ void MotorManager::controlLoop(){
     }
     // motor for wheel
     if (zero_speed_counter_ > BRAKE_TIMEOUT_COUNTS){
-        zero_speed_counter_--;          //let it not too more
+        zero_speed_counter_= BRAKE_TIMEOUT_COUNTS + 1;          //let it not too more
         for(int i = 0;i<=2;i++){
             target_enc_[i] = encoder_counts_[i];
             pid_controllers_[i].reset();    // 清空積分
@@ -106,6 +115,8 @@ void MotorManager::controlLoop(){
             motor_outputs[i] = pid_controllers_[i].update(target_enc_[i],encoder_counts_[i], DT);
         }
     }
+
+    RCLCPP_INFO(this->get_logger(), "target_enc:%f, enc:%f,t_s:%f,error:%f,out:%f",target_enc_[0],encoder_counts_[0],target_speed_[0],target_enc_[0]-encoder_counts_[0],motor_outputs[0]);
     
     //updown rail (special)
     target_enc_[3] += d_enc_[3];
@@ -131,9 +142,9 @@ void MotorManager::updateParameters() {
     this->updown_kp_ = this->get_parameter("updown.kp").as_double();
     this->updown_ki_ = this->get_parameter("updown.ki").as_double();
     this->updown_kd_ = this->get_parameter("updown.kd").as_double();
-    this->min_updown_enc_ = this->get_parameter("updown.max_enc").as_double();
-    this->max_updown_enc_ = this->get_parameter("updown.min_enc").as_double();
-    this->updown_invert_ = this->get_parameter("updown.invert").as_double();
+    this->min_updown_enc_ = this->get_parameter("updown.min_enc").as_double();
+    this->max_updown_enc_ = this->get_parameter("updown.max_enc").as_double();
+    this->updown_invert_ = this->get_parameter("updown.invert").as_bool();
 }
 
 rcl_interfaces::msg::SetParametersResult MotorManager::parameterEventCallback(const std::vector<rclcpp::Parameter> &parameters) {
@@ -147,7 +158,7 @@ rcl_interfaces::msg::SetParametersResult MotorManager::parameterEventCallback(co
         } else if (param.get_name() == "wheel.kd") {
             wheel_kd_ = param.as_double();
             RCLCPP_INFO(this->get_logger(), "Updated wheel.kd to: %.2f", wheel_kd_);
-        } else if (param.get_name() == "max_motor_speed") {
+        } else if (param.get_name() == "wheel.max_speed") {
             max_motor_speed_ = param.as_double();
             RCLCPP_INFO(this->get_logger(), "Updated max_motor_speed to: %.2f", max_motor_speed_);
         }

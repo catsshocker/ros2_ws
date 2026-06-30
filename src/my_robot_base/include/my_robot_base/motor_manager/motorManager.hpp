@@ -33,6 +33,8 @@ private:
     int zero_speed_counter_ = 0;
     bool enc_initialized_[4] = {false, false, false, false};
 
+    rclcpp::node_interfaces::OnSetParametersCallbackHandle::SharedPtr parameter_callback_handle_;
+
     double wheel_kp_, wheel_ki_, wheel_kd_;
     double updown_kp_, updown_ki_, updown_kd_;
     double max_motor_speed_;

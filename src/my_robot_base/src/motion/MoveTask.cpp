@@ -43,15 +43,25 @@ MovvveTask::MovvveTask(double dx, double dy, double dtheta, double Vm, double Ac
         this->updown_speed = UpDownSpeed(this->dtheta, Vm * TURN_RATIO, Acc);
         break;
     case move_type::MOVE_AND_TURN:
+        // 1. 計算時間同步所需的調整速度 (您原本優秀的邏輯)
         double t_linear = this->l / this->Vm;
-        double t_angular = std::abs(this->dtheta) / (this->Vm * TURN_RATIO);
+        double t_angular = std::abs(dtheta) / (this->Vm * TURN_RATIO);
 
         double t_max = std::max(t_linear, t_angular);
+        double Vm_adjusted = this->l / t_max; // 時間同步基準速度
 
-        double Vm_adjusted = this->l / t_max;
-        double Acc_adjusted = this->Acc * (Vm_adjusted / this->Vm); 
+        // 2. 【核心安全鎖】：利用「歸一化比例」計算絕對不超速的安全 Vm_safe
+        // 這個公式完全不需要任何外部常數，僅依靠您傳入的規格！
+        double Vm_safe = this->Vm / (1.0 + std::abs(dtheta) / (this->l * TURN_RATIO));
 
-        this->updown_speed = UpDownSpeed(this->l, Vm_adjusted, Acc_adjusted);
+        // 3. 取兩者最小值：既保證時間同步，又絕對不會超出馬達極限
+        double Vm_final = std::min(Vm_adjusted, Vm_safe);
+
+        // 4. 等比例縮放加速度，保持加減速曲線的平滑形狀
+        double Acc_final = this->Acc * (Vm_final / this->Vm);
+
+        // 5. 建立運動規劃
+        this->updown_speed = UpDownSpeed(this->l, Vm_final, Acc_final);
         break;
     }
     
